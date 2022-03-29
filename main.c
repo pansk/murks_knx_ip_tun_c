@@ -7,13 +7,6 @@
 #include<assert.h> // assert
 
 const char* target_multicast = "224.0.23.12";
-// const char* target = "192.168.201.242";
-// const char* target = "127.0.0.1";
-// const char* target = "224.0.23.12"; // default multicast
-// const char* target = "224.0.23.12"; // default multicast
-// const char* target = "10.42.43.9"; // router MDT werkstatt
-// const char* target = "10.42.43.11"; // router gira /dev/tal
-const char* target = "192.168.1.177"; // router gira /dev/tal
 
 #include"knx_ip_tun.h"
 #include"tgrm_handler.c"
@@ -22,14 +15,11 @@ const char* target = "192.168.1.177"; // router gira /dev/tal
 int handle_frame(void* frame, size_t sz){
 	struct knx_ip_header* knxip_header;
 	knxip_header = frame;
-	assert(sz==ntohs(knxip_header->length));
+	assert(sz == ntohs(knxip_header->length));
 
 	tgrm_handler_execute(ntohs(knxip_header->service_type),
 		frame + sizeof(struct knx_ip_header),
-//		ntohs(knxip_header->length) - sizeof(struct knx_ip_header));
 		sz - sizeof(struct knx_ip_header));
-
-//	printf("no handler for svc type %04x\n", ntohs(knxip_header->service_type));
 
 	return ntohs(knxip_header->service_type);
 }

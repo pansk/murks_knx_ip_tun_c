@@ -92,37 +92,25 @@ struct knx_frame_segment {
 #define KNX_CTRL2_HC_S 4
 #define KNX_CTRL2_EFF 1<<2
 
-void knx_ip_send_frame(struct knx_ip_channel *channel, uint16_t st,
-		struct knx_frame_segment* seg);
-
-void knx_ip_tun_send_request(struct knx_ip_channel* channel);
-
-void knx_ip_tun_send_ack(struct knx_ip_channel *channel, uint8_t seq_nr);
-
-void knx_ip_send_control_rq(struct knx_ip_channel *channel, uint16_t rq,
-		const char* rq_name);
-
 struct knx_frame_segment knx_frame_assemble(struct knx_frame_segment* seg);
 
 void knx_ip_send_frame(struct knx_ip_channel *channel, uint16_t st,
 		struct knx_frame_segment* seg);
-
-void knx_ip_tun_send_frame(struct knx_ip_channel *channel, uint16_t st,
-		struct knx_frame_segment* seg);
-
+void knx_ip_send_control_rq(struct knx_ip_channel *channel, uint16_t rq,
+		const char* rq_name);
 void knx_ip_send_disconnect(struct knx_ip_channel *channel);
 
-void knx_ip_tun_parse_cemi(void* frame, size_t sz, void* p_channel);
-
+void knx_ip_tun_send_request(struct knx_ip_channel* channel);
+void knx_ip_tun_send_ack(struct knx_ip_channel *channel, uint8_t seq_nr);
+void knx_ip_tun_send_frame(struct knx_ip_channel *channel, uint16_t st,
+		struct knx_frame_segment* seg);
 void knx_ip_tun_send_cemi(struct knx_frame_segment* data,
 		knx_ia_t dest, int group, void* p_channel);
 
+void knx_ip_tun_parse_cemi(void* frame, size_t sz, void* p_channel);
+
 void knx_ip_handler_search(void* frame, size_t sz, void* ret_buf);
-
 void knx_ip_handler_tunnel(void* frame, size_t sz, void* p_channel);
-
 void knx_ip_handler_disco(void* frame, size_t sz, void* p_channel);
-
 void knx_ip_handler_connres(void* frame, size_t sz, void* p_channel);
-
 void knx_ip_handler_csres(void* frame, size_t sz, void* p_channel);
