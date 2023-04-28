@@ -1,11 +1,10 @@
-#include"knx_ip_tun.h"
-#include<stdio.h>
-#include<stdlib.h> // malloc/free
-#include<unistd.h> // close
-#include<arpa/inet.h> // send
-#include<string.h> // memcpy
-#include<assert.h>
-#include<endian.h> // htobe16
+#include "knx_ip_tun.h"
+#include <cstdio>
+#include <cstdlib> // malloc/free
+#include <WinSock2.h> // send
+#include <cstring> // memcpy
+#include <assert.h>
+#include <limits>
 
 char knx_print_prio_char(uint8_t c1){
 	uint8_t p = c1 & KNX_CTRL1_PRIO;
@@ -14,20 +13,21 @@ char knx_print_prio_char(uint8_t c1){
 				(p == KNX_CTRL1_PU)?'U':'S'));
 }
 char* knx_print_ia(knx_ia_t na, char* s){
-	uint16_t a = be16toh(na);
+	uint16_t a = ntohs(na);
 	snprintf(s, 10, "%hd.%hd.%hd", (a & 0xf000) >> 12,
 		(a & 0x0f00) >> 8, (a & 0x00ff));
 	return s;
 }
 char* knx_print_ga(knx_ia_t na, char* s){
-	uint16_t a = be16toh(na);
+	uint16_t a = ntohs(na);
 	snprintf(s, 10, "%hd/%hd/%hd", (a & 0xf000) >> 12,
 		(a & 0x0f00) >> 8, (a & 0x00ff));
 	return s;
 }
 
-void knx_ip_tun_send_request(struct knx_ip_channel* channel){
-	struct __attribute__((packed)) cri { /* connect request information */
+void knx_ip_tun_send_request(knx_ip_channel* channel){
+#pragma pack(push, 1)
+	struct cri { /* connect request information */
 		uint8_t length;
 		uint8_t type;
 		uint8_t layer;
@@ -35,15 +35,16 @@ void knx_ip_tun_send_request(struct knx_ip_channel* channel){
 	//	hostproto_indep_data;
 	//	hostproto_dep_data;
 	} cri;
+#pragma pack(pop)
 
-	struct knx_frame_segment s_cri = { .data = &cri, sizeof(struct cri),
+    knx_frame_segment s_cri = { .data = &cri, .size = sizeof(struct cri),
 		.next = NULL }; /* last segment */
-	struct knx_frame_segment s_data = { .data = &channel->hpai,
-		sizeof(struct knx_ip_hpai_4), .next = &s_cri }; /* second segement */
-	struct knx_frame_segment s_ctrl = { .data = &channel->hpai,
-		sizeof(struct knx_ip_hpai_4), .next = &s_data }; /* first segment */
+    knx_frame_segment s_data = { .data = &channel->hpai,
+		.size = sizeof(struct knx_ip_hpai_4), .next = &s_cri }; /* second segement */
+    knx_frame_segment s_ctrl = { .data = &channel->hpai,
+		.size = sizeof(struct knx_ip_hpai_4), .next = &s_data }; /* first segment */
 
-	assert(channel->hpai.length == sizeof(struct knx_ip_hpai_4));
+	assert(channel->hpai.length == sizeof(knx_ip_hpai_4));
 
 	cri.length = sizeof(struct cri); // 0x04
 	cri.type = 0x04; // TUNNEL_CONNECTION = 0x04
@@ -54,47 +55,50 @@ void knx_ip_tun_send_request(struct knx_ip_channel* channel){
 }
 
 
-void knx_ip_tun_send_ack(struct knx_ip_channel *channel, uint8_t seq_nr){
-	 struct __attribute__((packed)) f {
-		struct knx_ip_header knx_ip_header;
-		struct knx_ip_tun_conn_header ch;
+void knx_ip_tun_send_ack(knx_ip_channel *channel, uint8_t seq_nr){
+#pragma pack(push, 1)
+	struct f {
+         knx_ip_header knx_ip_header;
+         knx_ip_tun_conn_header ch;
 	} b;
-
-	b.knx_ip_header.header_length = sizeof(struct knx_ip_header); //0x06
+#pragma pack(pop)
+	b.knx_ip_header.header_length = sizeof(knx_ip_header); //0x06
 	b.knx_ip_header.knxip_version = 0x10;
-	b.knx_ip_header.service_type = htobe16(KNX_ST_TUN_ACK); // tun ack
-	b.knx_ip_header.length = htobe16(sizeof(struct f));
+	b.knx_ip_header.service_type = htons(KNX_ST_TUN_ACK); // tun ack
+	b.knx_ip_header.length = htons(sizeof(struct f));
 
-	b.ch.length = sizeof(struct knx_ip_tun_conn_header); // 0x04
+	b.ch.length = sizeof(knx_ip_tun_conn_header); // 0x04
 	b.ch.channel = channel->channel;
 	b.ch.seq = seq_nr;
 	b.ch.resvd = 0x00;
 
-	send(channel->sock, &b, sizeof(b), 0);
+	send(channel->sock, (const char *)&b, sizeof(b), 0);
 	printf("\tframe acked\n");
 }
 
-void knx_ip_send_control_rq(struct knx_ip_channel *channel, uint16_t rq,
-		const char* rq_name){
-	 struct __attribute__((packed)) f {
-		struct knx_ip_header knx_ip_header;
+void knx_ip_send_control_rq(knx_ip_channel *channel, uint16_t rq,
+                            const char* rq_name){
+#pragma pack(push, 1)
+	struct f {
+         knx_ip_header knx_ip_header;
 		uint8_t channel;
 		uint8_t resvd;
-		struct knx_ip_hpai_4 hpai;
+         knx_ip_hpai_4 hpai;
 	} b;
+#pragma pack(pop)
 
-	b.knx_ip_header.header_length = sizeof(struct knx_ip_header); //0x06
+	b.knx_ip_header.header_length = sizeof(knx_ip_header); //0x06
 	b.knx_ip_header.knxip_version = 0x10;
-	b.knx_ip_header.service_type = htobe16(rq);
-	b.knx_ip_header.length = htobe16(sizeof(struct f));
+	b.knx_ip_header.service_type = htons(rq);
+	b.knx_ip_header.length = htons(sizeof(struct f));
 
 	// control endpoint
 	b.channel = channel->channel;
 	b.resvd = 0x00;
-	assert(channel->hpai.length == sizeof(struct knx_ip_hpai_4));
-	memcpy(&b.hpai, &channel->hpai, sizeof(struct knx_ip_hpai_4));
+	assert(channel->hpai.length == sizeof(knx_ip_hpai_4));
+	memcpy(&b.hpai, &channel->hpai, sizeof(knx_ip_hpai_4));
 
-	send(channel->sock, &b, sizeof(b), 0);
+	send(channel->sock, (const char*)&b, sizeof(b), 0);
 	printf("%s sent\n", rq_name);
 }
 
@@ -106,30 +110,30 @@ void knx_ip_send_control_rq(struct knx_ip_channel *channel, uint16_t rq,
  * reside in stack and heap. The resulting frame will be malloc'ed
  * and must be freed after use. Return is struct knx_frame_segement since this
  * enables providing the size of allocated memory. */
-struct knx_frame_segment knx_frame_assemble(struct knx_frame_segment* seg){
-	struct knx_frame_segment* s;
-	struct knx_frame_segment r = { .data = NULL, .size = 0, .next = NULL };
+knx_frame_segment knx_frame_assemble(knx_frame_segment* seg){
+    knx_frame_segment* s;
+    knx_frame_segment r = { .data = NULL, .size = 0, .next = NULL };
 	size_t offset = 0;
 
 	for(s = seg; s != NULL; s = s->next) r.size += s->size;
 	r.data = malloc(r.size);
 	for(s = seg; s != NULL; s = s->next) {
-		memcpy(r.data + offset, s->data, s->size);
+		memcpy((char*)r.data + offset, s->data, s->size);
 		offset += s->size;
 	}
 	return r;
 }
 
-void knx_ip_send_frame(struct knx_ip_channel *channel, uint16_t st,
-		struct knx_frame_segment* seg){
-	struct knx_ip_header knx_ip_header, *frame_knx_ip_header;
-	struct knx_frame_segment frame;
-	struct knx_frame_segment hs = {.data = &knx_ip_header,
+void knx_ip_send_frame(knx_ip_channel *channel, uint16_t st,
+                       knx_frame_segment* seg){
+    knx_ip_header knx_ip_header, *frame_knx_ip_header;
+    knx_frame_segment frame;
+    knx_frame_segment hs = {.data = &knx_ip_header,
 		.size = sizeof(struct knx_ip_header), .next = seg};
 
 	knx_ip_header.header_length = sizeof(struct knx_ip_header); //0x06
 	knx_ip_header.knxip_version = 0x10;
-	knx_ip_header.service_type = htobe16(st);
+	knx_ip_header.service_type = htons(st);
 	knx_ip_header.length = 0; // ensure all memory is zeroed
 	/* knx_ip_header.length can not be set here, because final overall frame
 	 * size is not known yet. */
@@ -137,22 +141,26 @@ void knx_ip_send_frame(struct knx_ip_channel *channel, uint16_t st,
 	frame = knx_frame_assemble(&hs);
 	/* map start of final frame data to knx ip header, to be able to set
 	 * overall frame length */
-	frame_knx_ip_header = frame.data;
-	frame_knx_ip_header->length = htobe16(frame.size);
+	frame_knx_ip_header = (struct knx_ip_header*)frame.data;
+	assert(frame.size <= std::numeric_limits<uint16_t>::max());
 
-	send(channel->sock, frame.data, frame.size, 0);
+	uint16_t frame_size = uint16_t(frame.size);
+
+	frame_knx_ip_header->length = htons(frame_size);
+
+	send(channel->sock, (const char *)frame.data, frame_size, 0);
 	printf("frame sent\n");
 	free(frame.data);
 }
 
-void knx_ip_tun_send_frame(struct knx_ip_channel *channel, uint16_t st,
-		struct knx_frame_segment* seg){
-	struct knx_ip_tun_conn_header ch;
+void knx_ip_tun_send_frame(knx_ip_channel *channel, uint16_t st,
+                           knx_frame_segment* seg){
+    knx_ip_tun_conn_header ch;
 
-	struct knx_frame_segment ch_s = {.data = &ch,
+    knx_frame_segment ch_s = {.data = &ch,
 		.size = sizeof(struct knx_ip_tun_conn_header), .next = seg};
 
-	ch.length = sizeof(struct knx_ip_tun_conn_header); // 0x04
+	ch.length = sizeof(knx_ip_tun_conn_header); // 0x04
 	ch.channel = channel->channel;
 	ch.seq = channel->seq_send;
 	ch.resvd = 0x00;
@@ -161,25 +169,27 @@ void knx_ip_tun_send_frame(struct knx_ip_channel *channel, uint16_t st,
 	channel->seq_send++;
 }
 
-void knx_ip_send_disconnect(struct knx_ip_channel *channel){
+void knx_ip_send_disconnect(knx_ip_channel *channel){
 	knx_ip_send_control_rq(channel, 0x0209, "disconnect");
 	channel->active=2; // TODO: transform to inactive to make active = false
 }
 
 void knx_ip_tun_parse_cemi(void* frame, size_t sz,
-		__attribute__((unused))void* p_channel){
+		[[maybe_unused]] void* p_channel){
 	size_t i;
-	struct __attribute__((packed)) cemi_start {
+#pragma pack(push, 1)
+	struct cemi_start {
 		uint8_t mc; // message code
 		uint8_t addil; // addditional information length
 	}  *cemi_start;
-	struct __attribute__((packed)) cemi_data {
+    struct cemi_data {
 		uint8_t c1;
 		uint8_t c2;
 		knx_ia_t sa;
 		knx_ia_t da;
 		uint8_t npdu_length;
 	} *cemi_data;
+#pragma pack(pop)
 	uint8_t *tpdu;
 	char src_addr[10];
 	char dst_addr[10];
@@ -188,8 +198,8 @@ void knx_ip_tun_parse_cemi(void* frame, size_t sz,
 
 	assert(sz >= sizeof(struct cemi_start));
 
-	cemi_start = frame;
-	cemi_data = frame + sizeof(struct cemi_start) + cemi_start->addil;
+	cemi_start = (struct cemi_start*)frame;
+	cemi_data = (struct cemi_data*)((char*)frame + sizeof(struct cemi_start) + cemi_start->addil);
 
 	if(cemi_start->mc != KNX_CEMI_MC_DATA_IND
 			&& cemi_start->mc != KNX_CEMI_MC_DATA_REQ ) {
@@ -198,7 +208,7 @@ void knx_ip_tun_parse_cemi(void* frame, size_t sz,
 	}
 	assert(sz >= sizeof(struct cemi_start) + cemi_start->addil +
 		sizeof(struct cemi_data));
-	tpdu = (void*) cemi_data + sizeof(struct cemi_data);
+	tpdu = (uint8_t*) cemi_data + sizeof(struct cemi_data);
 
 	assert(sz >= sizeof(struct cemi_start) + cemi_start->addil +
 		sizeof(struct cemi_data) + cemi_data->npdu_length);
@@ -233,11 +243,12 @@ void knx_ip_tun_parse_cemi(void* frame, size_t sz,
 
 /* send CEMI frame to tunnel endpoint
  * send `data` to `dest`. `dest` is group address if `group` true */
-void knx_ip_tun_send_cemi(struct knx_frame_segment* data,
-		knx_ia_t dest, int group, void* p_channel){
-	struct knx_frame_segment test_frame;
-	struct knx_ip_channel *channel = (struct knx_ip_channel*) p_channel;
-	static struct __attribute__((packed)) h{
+void knx_ip_tun_send_cemi(knx_frame_segment* data,
+                          knx_ia_t dest, int group, void* p_channel){
+    knx_frame_segment test_frame;
+    knx_ip_channel *channel = (struct knx_ip_channel*) p_channel;
+#pragma pack(push, 1)
+	static struct h{
 		uint8_t mc; // message code
 		uint8_t addil; // addditional information length = 0
 		uint8_t c1;
@@ -247,7 +258,8 @@ void knx_ip_tun_send_cemi(struct knx_frame_segment* data,
 		uint8_t npdu_length;
 		uint8_t tpci;
 	} h;
-	struct knx_frame_segment seg_header = {.data = &h,
+#pragma pack(pop)
+    knx_frame_segment seg_header = {.data = &h,
 		.size = sizeof(struct h), .next = data};
 
 	h.mc = KNX_CEMI_MC_DATA_REQ;
@@ -255,8 +267,9 @@ void knx_ip_tun_send_cemi(struct knx_frame_segment* data,
 	h.c1 = KNX_CTRL1_FT | KNX_CTRL1_R | KNX_CTRL1_SB | KNX_CTRL1_PL;
 	h.c2 = (group ? KNX_CTRL2_AT : 0) | (6 << KNX_CTRL2_HC_S);
 	h.sa = channel->ia;
-	h.da = htobe16(dest);
-	h.npdu_length = data->size;
+	h.da = htons(dest);
+	assert(data->size <= std::numeric_limits<uint8_t>::max());
+	h.npdu_length = uint8_t(data->size);
 	h.tpci = 0x00;
 
 	test_frame = knx_frame_assemble(&seg_header);
@@ -266,15 +279,14 @@ void knx_ip_tun_send_cemi(struct knx_frame_segment* data,
 }
 
 
-void knx_ip_handler_tunnel(void* frame, size_t sz, void* p_channel){
-	struct knx_ip_channel *channel = (struct knx_ip_channel*) p_channel;
+void knx_ip_handler_tunnel(void* frame, size_t sz, knx_ip_channel* channel) {
 
-	struct knx_ip_tun_conn_header *chead = frame;
+	knx_ip_tun_conn_header* chead = (knx_ip_tun_conn_header *)frame;
 
-	assert(sz >= sizeof(struct knx_ip_tun_conn_header));
-	assert(chead->length == sizeof(struct knx_ip_tun_conn_header));
+	assert(sz >= sizeof(knx_ip_tun_conn_header));
+	assert(chead->length == sizeof(knx_ip_tun_conn_header));
 
-	knx_ip_tun_parse_cemi(frame + chead->length, sz - chead->length, p_channel);
+	knx_ip_tun_parse_cemi((char*)frame + chead->length, sz - chead->length, channel);
 
 	knx_ip_tun_send_ack(channel, chead->seq);
 	channel->seq_recv = chead->seq;
@@ -282,43 +294,44 @@ void knx_ip_handler_tunnel(void* frame, size_t sz, void* p_channel){
 	return;
 }
 
-void knx_ip_handler_disco(void* frame, size_t sz, void* p_channel){
-	const struct knx_ip_channel channel = *((struct knx_ip_channel*) p_channel);
-	struct __attribute__((packed)) f {
+void knx_ip_handler_disco(void* frame, size_t sz, knx_ip_channel* channel){
+#pragma pack(push, 1)
+	struct f {
 		uint8_t channel;
 		uint8_t resvd;
-		struct knx_ip_hpai_4 hpai;
-	} *recv = frame;
+        knx_ip_hpai_4 hpai;
+	} *recv = (f*)frame;
 
-	struct __attribute__((packed)) fs {
+    struct fs {
 		uint8_t channel;
 		uint8_t status;
 	} resp = {.channel = recv->channel, .status = 0x00 }; // FIXME: status
-
+#pragma pack(pop)
 	assert(sz >= sizeof(struct f));
-	assert(recv->channel == channel.channel);
+	assert(recv->channel == channel->channel);
 
-	send(channel.sock, &resp, sizeof(resp), 0);
+	send(channel->sock, (const char*)& resp, sizeof(resp), 0);
 
 	printf("disconnected\n");
 
-	close(channel.sock);
+	closesocket(channel->sock);
 }
 
-void knx_ip_handler_connres(void* frame, size_t sz, void* p_channel){
-	struct __attribute__((packed)) f {
+void knx_ip_handler_connres(void* frame, size_t sz, knx_ip_channel* channel){
+#pragma pack(push, 1)
+	struct f {
 		uint8_t channel;
 		uint8_t status;
-		struct knx_ip_hpai_4 hpai;
-		struct __attribute__((packed)) knx_ip_crd {
+        knx_ip_hpai_4 hpai;
+        struct knx_ip_crd {
 			uint8_t length;
 			uint8_t type;
 			knx_ia_t ia; // FIXME: Union/Typedef knx_ia_t
 		} crd;
-	} *b=frame;
-	struct knx_ip_channel *channel=p_channel;
+	} *b= (f*)frame;
+#pragma pack(pop)
 
-	assert(p_channel);
+	assert(channel);
 	assert(sz >= sizeof(struct f));
 	assert(!channel->active);
 	assert(b->crd.type == 0x04);
@@ -335,25 +348,26 @@ void knx_ip_handler_connres(void* frame, size_t sz, void* p_channel){
 }
 
 /* handle connection state response frame */
-void knx_ip_handler_csres(void* frame, size_t sz, void* p_channel){
-	static int try=0;
-	struct __attribute__((packed)) f {
+void knx_ip_handler_csres(void* frame, size_t sz, knx_ip_channel* channel){
+	static int try_=0;
+#pragma pack(push, 1)
+	struct f {
 		uint8_t channel;
 		uint8_t status;
-	} *b=frame;
-	struct knx_ip_channel *channel=p_channel;
+	} *b=(f*)frame;
+#pragma pack(pop)
 
 	assert(sz >= sizeof(struct f));
 	assert(channel->active);
 	assert(b->status == 0x00);
 	if(b->status != 0x00){
 		printf("\tkeepalive FAILED\n");
-		if(try >= 3)
+		if(try_ >= 3)
 			knx_ip_send_disconnect(channel);
-		else try++;
+		else try_++;
 		return; // not connected properly
 	}else{
-		try=0;
+		try_ =0;
 		printf("\tkeepalive successful\n");
 	}
 }

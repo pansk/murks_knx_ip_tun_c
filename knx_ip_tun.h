@@ -1,43 +1,49 @@
-#include<stdint.h> // uintX_t
-#include<sys/types.h> // size_t
 
-struct __attribute__((packed)) knx_ip_header {
+#pragma once
+
+#include <stdint.h> // uintX_t
+#include <WinSock2.h>
+
+#pragma pack(push, 1)
+
+struct knx_ip_header {
 	uint8_t header_length; //0x06
 	uint8_t knxip_version; //0x10
 	uint16_t service_type;
 	uint16_t length; // including header
 };
 
-struct __attribute__((packed)) knx_ip_hpai_4 {
+struct knx_ip_hpai_4 {
 	uint8_t length; // 0x08
 	uint8_t proto_code; // IPv4 UDP: 0x01, TCP: 0x02
 	uint32_t address;
 	uint16_t port;
 };
 
-struct __attribute__((packed)) knx_ip_tun_conn_header {
+struct knx_ip_tun_conn_header {
 	uint8_t length; // 0x04
 	uint8_t channel;
 	uint8_t seq;
 	uint8_t resvd;
 };
+#pragma pack(pop)
 
 typedef uint16_t knx_ia_t;
 
 struct knx_ip_channel {
-	int sock;
-	uint16_t channel;
-	uint16_t seq_recv;
-	uint16_t seq_send;
+	SOCKET sock;
+	uint8_t channel;
+	uint8_t seq_recv;
+	uint8_t seq_send;
 	knx_ia_t ia;
 	int active;
-	struct knx_ip_hpai_4 hpai;
+    knx_ip_hpai_4 hpai;
 };
 
 struct knx_frame_segment {
 	void* data;
 	size_t size;
-	struct knx_frame_segment* next;
+    knx_frame_segment* next;
 };
 
 
@@ -92,25 +98,25 @@ struct knx_frame_segment {
 #define KNX_CTRL2_HC_S 4
 #define KNX_CTRL2_EFF 1<<2
 
-struct knx_frame_segment knx_frame_assemble(struct knx_frame_segment* seg);
+knx_frame_segment knx_frame_assemble(knx_frame_segment* seg);
 
-void knx_ip_send_frame(struct knx_ip_channel *channel, uint16_t st,
-		struct knx_frame_segment* seg);
-void knx_ip_send_control_rq(struct knx_ip_channel *channel, uint16_t rq,
-		const char* rq_name);
-void knx_ip_send_disconnect(struct knx_ip_channel *channel);
+void knx_ip_send_frame(knx_ip_channel *channel, uint16_t st,
+                       knx_frame_segment* seg);
+void knx_ip_send_control_rq(knx_ip_channel *channel, uint16_t rq,
+                            const char* rq_name);
+void knx_ip_send_disconnect(knx_ip_channel *channel);
 
-void knx_ip_tun_send_request(struct knx_ip_channel* channel);
-void knx_ip_tun_send_ack(struct knx_ip_channel *channel, uint8_t seq_nr);
-void knx_ip_tun_send_frame(struct knx_ip_channel *channel, uint16_t st,
-		struct knx_frame_segment* seg);
-void knx_ip_tun_send_cemi(struct knx_frame_segment* data,
-		knx_ia_t dest, int group, void* p_channel);
+void knx_ip_tun_send_request(knx_ip_channel* channel);
+void knx_ip_tun_send_ack(knx_ip_channel *channel, uint8_t seq_nr);
+void knx_ip_tun_send_frame(knx_ip_channel *channel, uint16_t st,
+                           knx_frame_segment* seg);
+void knx_ip_tun_send_cemi(knx_frame_segment* data,
+                          knx_ia_t dest, int group, void* p_channel);
 
 void knx_ip_tun_parse_cemi(void* frame, size_t sz, void* p_channel);
 
 void knx_ip_handler_search(void* frame, size_t sz, void* ret_buf);
-void knx_ip_handler_tunnel(void* frame, size_t sz, void* p_channel);
-void knx_ip_handler_disco(void* frame, size_t sz, void* p_channel);
-void knx_ip_handler_connres(void* frame, size_t sz, void* p_channel);
-void knx_ip_handler_csres(void* frame, size_t sz, void* p_channel);
+void knx_ip_handler_tunnel(void* frame, size_t sz, knx_ip_channel* p_channel);
+void knx_ip_handler_disco(void* frame, size_t sz, knx_ip_channel* p_channel);
+void knx_ip_handler_connres(void* frame, size_t sz, knx_ip_channel* p_channel);
+void knx_ip_handler_csres(void* frame, size_t sz, knx_ip_channel* p_channel);
