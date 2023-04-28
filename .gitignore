@@ -50,5 +50,8 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
-/.vs/murks_knx_ip_tun_c
-/x64/Debug
+/.vs/
+/x64/
+/Release/
+/Debug/
+*.user
