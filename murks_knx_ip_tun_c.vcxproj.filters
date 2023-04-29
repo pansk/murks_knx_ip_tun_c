@@ -18,9 +18,6 @@
     <ClCompile Include="main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="tgrm_handler.h">
-      <Filter>Source Files</Filter>
-    </ClCompile>
     <ClCompile Include="knx_ip_tun.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>

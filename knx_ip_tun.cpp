@@ -227,7 +227,7 @@ void knx_ip_tun_parse_cemi(const char* frame, size_t sz){
 
 	if(start->message_code != KNX_CEMI_MC::DATA_IND
 			&& start->message_code != KNX_CEMI_MC::DATA_REQ ) {
-		printf("unknown cemi message code 0x%02x\n", start->message_code);
+		printf("unknown cemi message code 0x%02x\n", static_cast<uint8_t>(start->message_code));
 		return;
 	}
 	assert(sz >= sizeof(cemi_start) + start->additional_information_length +
@@ -242,7 +242,7 @@ void knx_ip_tun_parse_cemi(const char* frame, size_t sz){
 	printf("\n");
 
 	printf("\tmc: 0x%02x, npdu length: 0x%02x (+1 +0x%02x addil), tpci %02x\n",
-		start->message_code, data->data_length, start->additional_information_length,
+		static_cast<uint8_t>(start->message_code), data->data_length, start->additional_information_length,
 		tpdu[0]);
 	printf("\tFT: %c rpt: %c bcst: %c prio: %c ack: %c cf: %c ",
 		data->control_1 & KNX_CTRL1_FT ?'S':'E', // standard frame
@@ -452,8 +452,7 @@ void knx_ip_channel::handler_csres(const char* frame, size_t sz) {
 	printf("\tkeepalive successful\n");
 }
 
-int str_target(const char* host, const char* pport, sockaddr_in* remote) {
-	const int port = atoi(pport);
+int str_target(const char* host, uint16_t port, sockaddr_in* remote) {
 	//	char* host = malloc(strlen(phost));
 
 	assert(port <= 0xffff && port > 0);
@@ -467,7 +466,7 @@ int str_target(const char* host, const char* pport, sockaddr_in* remote) {
 	return 0;
 }
 
-int knx_ip_channel::connect(const char* host, const char* port)
+int knx_ip_channel::connect(const char* host, uint16_t port)
 {
 	sockaddr_in remote{}, local{};
 	memset(&remote, 0x00, sizeof(sockaddr_in));

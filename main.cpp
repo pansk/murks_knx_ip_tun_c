@@ -2,7 +2,6 @@
 #include <cstring> // memset
 #include <cstdio> // printf
 #include <cstdint> // close, uintX_t
-#include <cstdlib> // malloc
 #include <cassert> // assert
 #include <iostream>
 #include <cstring>
@@ -11,7 +10,6 @@
 #include <ws2tcpip.h>
 
 #include"knx_ip_tun.h"
-#include"tgrm_handler.h"
 
 const char* target_multicast = "224.0.23.12";
 
@@ -41,11 +39,11 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char** argv){
 
 	assert(argc >= 3);
     // initialize socket
-    int retval = channel.connect(argv[1], argv[2]);
+    const int retval = channel.connect(argv[1], atoi(argv[2]));
 	if (retval != 0) { return retval; }
 
 	while(r>0) {
-		int fds = channel.socket();
+		const int fds = channel.socket();
 		FD_ZERO(&rfds);
 		FD_SET(fds, &rfds);
 		//FD_SET(0, &rfds);

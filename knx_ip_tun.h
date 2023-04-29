@@ -129,7 +129,7 @@ class knx_ip_channel {
 	void tun_send_ack(uint8_t seq_nr) const;
 	void disconnect();
 public:
-	int connect(const char* host, const char* port);
+	int connect(const char* host, uint16_t port);
 
 	void send_control_rq(KNX_ST st) const;
 	void send_disconnect();

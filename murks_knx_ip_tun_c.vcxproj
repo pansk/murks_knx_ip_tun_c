@@ -137,7 +137,6 @@
   <ItemGroup>
     <ClCompile Include="knx_ip_tun.cpp" />
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="tgrm_handler.h" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="knx_ip_tun.h" />
